@@ -39,10 +39,3 @@ print(f"Response Text: \n{'-'*15}\n {response.text}")
 
 
 
-# uri = f'http://www.strava.com/oauth/authorize?client_id={client_id}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read'
-
-
-# uri = 'https://www.strava.com/api/v3/activities'
-# resp = requests.get(uri, headers={'Authorization': f'Bearer {Config.STRAVA_API_KEY}'})
-# print(resp.json())
-

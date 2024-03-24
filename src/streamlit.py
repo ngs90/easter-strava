@@ -22,16 +22,6 @@ oauth2 = OAuth2Component(client_id=client_id,
                          revoke_token_endpoint=deauthorize_url)
 
 
-# st.markdown("""
-#     <style>
-#     button[class*="authorize_button"] {
-#         height: 150px; /* Adjust the height */
-#         width: 400px; /* Adjust the width */
-#         font-size: 20px; /* Adjust the font size */
-#     }
-#     </style>
-#     """, unsafe_allow_html=True)
-
 if 'token' not in st.session_state:
   result = oauth2.authorize_button(name="Continue with Strava", 
                                    redirect_uri=redirect_url, 
