@@ -1,5 +1,7 @@
 from requests_oauthlib import OAuth2Session
 from config import write_env
+from oauthlib.oauth2.rfc6749.errors import TokenExpiredError
+
 
 def create_session(conf, verify_token: bool=True):
 
@@ -9,28 +11,30 @@ def create_session(conf, verify_token: bool=True):
                             )
     
     if verify_token:
-        response = session.get('https://www.strava.com/api/v3/athlete')
-        print(f"Response Status: {response.status_code}")
-        print(f"Response Reason: {response.reason}")
+        try:
+            response = session.get(conf.verify_url)
+        except TokenExpiredError as e:
+            session = update_token_interactive(session, conf)
+            conf.token = session.token
+            write_env(conf)
+            response = session.get(conf.verify_url)
 
         if response.status_code == 401 and response.reason == 'Unauthorized':
             print('Updating token...')
             session = update_token_interactive(session, conf)
             conf.token = session.token
-            print('token', conf.token)
             write_env(conf)
         
     return session 
 
 def update_token_interactive(session, conf):
 
-    session.scope = ['profile:read_all']
+    session.scope = [conf.session_scope]
     auth_link = session.authorization_url(conf.auth_base_url)
 
     print(f"Click here to authorize: {auth_link[0]}")
 
     redirect_response = input("Paste redirect url here:")
-
     
     session.fetch_token(
         token_url=conf.token_url,
