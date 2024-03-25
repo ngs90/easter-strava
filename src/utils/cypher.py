@@ -1,8 +1,16 @@
 
+def _get_schema_rel_properties(tx):
+    result = tx.run("call db.schema.relTypeProperties")
+    values = [record.values() for record in result]
+    return values 
 
-def _delete_all(rx):
-    rx.run("MATCH (n) DETACH DELETE n")
+def _get_schema_node_properties(tx):
+    result = tx.run("call db.schema.nodeTypeProperties")
+    values = [record.values() for record in result]
+    return values
 
+def _delete_all(tx):
+    tx.run("MATCH (n) DETACH DELETE n")
 
 def _get_ids(tx):
     result = tx.run("""MATCH (n:Activity)
@@ -13,7 +21,7 @@ def _get_ids(tx):
     return values 
 
 
-def _get_and_save_activities(tx, token):
+def _get_activities(tx, token):
     result = tx.run(
         """
         WITH 'https://www.strava.com/api/v3/athlete/activities' AS uri
@@ -72,6 +80,40 @@ def _get_and_save_activities(tx, token):
         MERGE (activity)-[:HAS_MAP]->(map)
         """,
         token="Bearer " + token)
+
+
+def _get_stream(tx, token, activity_id):
+    # time, distance, latlng, altitude, velocity_smooth, heartrate, cadence, watts, temp, moving, grade_smooth
+
+    result = tx.run("""
+        WITH 'https://www.strava.com/api/v3/activities/'+$activity_id+'/streams?keys=watts,time,distance,latlng,altitude,velocity_smooth,heartrate,cadence,temp,moving,grade_smooth&keyByType=true' AS uri
+        CALL apoc.load.jsonParams(uri, {Authorization: 'Bearer '+$token}, null) 
+        YIELD value AS json
+
+        // Merge on the Activity node based on the external 'id' property
+        MERGE (activity:Activity {id: $activity_id})
+
+        WITH activity, json
+        CALL apoc.do.case([
+            json.type = 'latlng', 
+            "RETURN {label: 'Stream', props: {id: $activity_id+'_'+json.type, type: json.type, data: apoc.convert.toJson(json.data), series_type: json.series_type, original_size: json.original_size, resolution: json.resolution}} AS nodeInfo",
+            json.type <> 'latlng', 
+            "RETURN {label: 'Stream', props: {id: $activity_id+'_'+json.type, type: json.type, data: apoc.convert.toJson(json.data), series_type: json.series_type, original_size: json.original_size, resolution: json.resolution}} AS nodeInfo"
+        ], null,{activity_id: $activity_id, json: json}) YIELD value AS caseResult
+
+        WITH activity, caseResult.nodeInfo AS nodeInfo
+        CALL apoc.create.node([nodeInfo.label], nodeInfo.props) YIELD node AS stream
+
+        MERGE (activity)-[:HAS_STREAM]->(stream)
+        RETURN activity, stream
+        """,
+        token=token,
+        activity_id=activity_id)
+    
+    return result 
+
+
+# call db.schema.visualization
 
 # def _create_test_data(tx, comment):
 #     result = tx.run("""

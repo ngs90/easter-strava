@@ -6,7 +6,6 @@ conf = Config()
 session = create_session(conf, verify_token=True)
 athlete_id = session.token['athlete']['id']
 
-
 # Athlete stats 
 athlete_url = f'https://www.strava.com/api/v3/athletes/{athlete_id}/stats'
 response = session.get(athlete_url)

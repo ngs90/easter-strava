@@ -6,13 +6,13 @@ from config import Config
 
 load_dotenv()
 
-client_id = os.getenv('CLIENT_ID')
-client_secret = os.getenv('CLIENT_SECRET')
+client_id = os.getenv('client_id')
+client_secret = os.getenv('client_secret')
 redirect_url = "http://localhost:8501"
 auth_base_url = "https://www.strava.com/oauth/authorize"
 token_url = 'https://www.strava.com/api/v3/oauth/token'
 deauthorize_url = 'https://www.strava.com/oauth/deauthorize'
-scope = 'profile:read_all'
+scope = os.getenv('session_scope')
 
 oauth2 = OAuth2Component(client_id=client_id, 
                          client_secret=client_secret,
