@@ -19,28 +19,23 @@ def _get_stream(tx, token, activity_id):
 
     result = tx.run("""
         WITH 'https://www.strava.com/api/v3/activities/'+$activity_id+'/streams?keys=watts,time,distance,latlng,altitude,velocity_smooth,heartrate,cadence,temp,moving,grade_smooth&keyByType=true' AS uri
-        CALL apoc.load.jsonParams(uri, 
-                        {Authorization: 'Bearer '+$token}, null) 
-        YIELD value
+        CALL apoc.load.jsonParams(uri, {Authorization: 'Bearer '+$token}, null) 
+        YIELD value AS json
 
         // Merge on the Activity node based on the external 'id' property
         MERGE (activity:Activity {id: $activity_id})
 
-        // Assuming you're dealing with stream data for this activity
-        // Merge on the Stream node based on a corresponding 'id' property
-        MERGE (stream:Stream {id: $activity_id})
-        ON CREATE SET stream.type = toString(value.type),
-                    stream.data = apoc.convert.toJson(value.data),
-                    stream.series_type = toString(value.series_type),
-                    stream.original_size = toInteger(value.original_size),
-                    stream.resolution = toString(value.resolution)
-        ON MATCH SET  stream.type = toString(value.type),
-                    stream.data = apoc.convert.toJson(value.data),
-                    stream.series_type = toString(value.series_type),
-                    stream.original_size = toInteger(value.original_size),
-                    stream.resolution = toString(value.resolution)
+        WITH activity, json
+        CALL apoc.do.case([
+            json.type = 'latlng', 
+            "RETURN {label: apoc.text.upperCamelCase('Stream '+json.type), props: {id: $activity_id, type: json.type, data: apoc.convert.toJson(json.data), series_type: json.series_type, original_size: json.original_size, resolution: json.resolution}} AS nodeInfo",
+            json.type <> 'latlng', 
+            "RETURN {label: apoc.text.upperCamelCase('Stream '+json.type), props: {id: $activity_id, type: json.type, data: apoc.convert.toJson(json.data), series_type: json.series_type, original_size: json.original_size, resolution: json.resolution}} AS nodeInfo"
+        ], null,{activity_id: $activity_id, json: json}) YIELD value AS caseResult
 
-        // Create or confirm the HAS_STREAM relationship from Activity to Stream
+        WITH activity, caseResult.nodeInfo AS nodeInfo
+        CALL apoc.create.node([nodeInfo.label], nodeInfo.props) YIELD node AS stream
+
         MERGE (activity)-[:HAS_STREAM]->(stream)
         RETURN activity, stream
         """,
@@ -50,8 +45,8 @@ def _get_stream(tx, token, activity_id):
     return result
 
 with driver.session() as session:
-    # print('Get and save activities...')
-    # result = session.execute_write(_get_and_save_activities, conf.token['access_token'])
+    print('Get and save activities...')
+    result = session.execute_write(_get_and_save_activities, conf.token['access_token'])
     
     print('Get activity ids...')
     values = session.execute_read(_get_ids)
@@ -65,8 +60,9 @@ with driver.session() as session:
         except ClientError as e:
             print('Failed for activity: ' + str(activity_id) + ' - ClientError: ' + str(e))
     
-    #print(values)
-    # result =session.execute_write(_delete_all)
+    print(values)
+
+    #result =session.execute_write(_delete_all)
 
 print(values)
 driver.close()

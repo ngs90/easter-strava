@@ -85,3 +85,10 @@ def _get_and_save_activities(tx, token):
     
 # comment = "This was a fun activity"
 # result = session.execute_write(_create_test_data, comment)
+    
+
+#     MATCH (n)
+# OPTIONAL MATCH (n)-[r]-()
+# WITH n,r LIMIT 50000
+# DELETE n,r
+# RETURN count(n) as deletedNodesCount
