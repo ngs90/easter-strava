@@ -11,7 +11,7 @@ conf = Config()
 _ = create_session(conf, verify_token=True)
 
 uri = conf.neo4j_uri
-driver = GraphDatabase.driver(uri=uri, auth=("neo4j", conf.neo4j_pw))
+driver = GraphDatabase.driver(uri=uri, auth=(conf.neo4j_user, conf.neo4j_pw))
 
 
 # apoc.text.upperCamelCase('Stream '+json.type)
